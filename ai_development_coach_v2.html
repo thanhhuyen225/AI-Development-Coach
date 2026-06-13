@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Development Coach v2</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f8f7f5;
+  --color-background-tertiary:#f1efe8;
+  --color-text-primary:#1a1a1a;
+  --color-text-secondary:#6b6b6b;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.22);
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+  --font-sans:system-ui,-apple-system,sans-serif;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#1e1e1e;
+    --color-background-secondary:#2a2a2a;
+    --color-background-tertiary:#242424;
+    --color-text-primary:#f0f0f0;
+    --color-text-secondary:#a0a0a0;
+    --color-border-tertiary:rgba(255,255,255,0.12);
+    --color-border-secondary:rgba(255,255,255,0.22);
+  }
+}
+body{font-family:var(--font-sans);background:var(--color-background-tertiary);color:var(--color-text-primary);font-size:14px;min-height:100vh}
+.app{max-width:680px;margin:0 auto;padding:2rem 1rem}
+.step-header{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem}
+.step-badge{background:#EEEDFE;color:#534AB7;font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;border:0.5px solid #AFA9EC;flex-shrink:0}
+.step-title{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.step-sub{font-size:13px;color:var(--color-text-secondary);margin-top:3px;line-height:1.5}
+.prog{display:flex;gap:5px;margin-bottom:1.5rem}
+.prog-s{flex:1;height:3px;border-radius:2px;background:var(--color-border-tertiary);transition:background 0.3s}
+.prog-s.done{background:#534AB7}
+.prog-s.active{background:#AFA9EC}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem}
+.field{margin-bottom:1rem}
+.field:last-child{margin-bottom:0}
+label{display:block;font-size:13px;color:var(--color-text-secondary);margin-bottom:5px;font-weight:500}
+.helper{font-size:12px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:6px;font-style:italic}
+input[type=text],select{width:100%;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:14px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
+input[type=text]:focus,select:focus{border-color:#534AB7}
+textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:14px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);resize:vertical;line-height:1.6;outline:none}
+textarea:focus{border-color:#534AB7}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--border-radius-md);font-size:14px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);transition:background 0.15s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn-primary{background:#534AB7;color:#fff;border-color:#534AB7}
+.btn-primary:hover{background:#3C3489;border-color:#3C3489}
+.btn-primary:disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
+.btn-row{display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end}
+.hidden{display:none!important}
+.chat-wrap{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.chat-msgs{padding:1rem;min-height:220px;max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;background:var(--color-background-secondary)}
+.msg{max-width:88%;font-size:14px;line-height:1.65}
+.msg-inner{padding:10px 14px;border-radius:10px}
+.msg.ai .msg-inner{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:2px 10px 10px 10px}
+.msg.user{align-self:flex-end}
+.msg.user .msg-inner{background:#534AB7;color:#fff;border-radius:10px 2px 10px 10px}
+.msg-dim{font-size:10px;font-weight:500;color:#7F77DD;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.msg-dim i{font-size:12px}
+.msg.system-note{align-self:center;max-width:95%}
+.msg.system-note .msg-inner{background:#EEEDFE;color:#3C3489;font-size:12px;text-align:center;border-radius:6px;border:0.5px solid #AFA9EC;padding:7px 12px}
+.msg.warning-note{align-self:stretch;max-width:100%}
+.msg.warning-note .msg-inner{background:#FAEEDA;color:#633806;border:0.5px solid #EF9F27;border-radius:var(--border-radius-md);font-size:13px;padding:12px 14px;line-height:1.6}
+.msg.warning-note .msg-inner strong{display:block;margin-bottom:6px;font-size:13px}
+.msg.warning-note .msg-inner .note{font-size:12px;color:#854F0B;margin-top:6px;line-height:1.5;border-top:0.5px solid #EF9F27;padding-top:6px}
+.typing-wrap{align-self:flex-start;max-width:88%}
+.typing{display:flex;gap:4px;align-items:center;padding:12px 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:2px 10px 10px 10px}
+.typing span{width:6px;height:6px;border-radius:50%;background:#AFA9EC;animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+.chat-footer{display:flex;gap:8px;padding:10px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary)}
+.chat-footer input{flex:1;border-radius:20px;padding:8px 14px;font-size:14px}
+.send-btn{background:#534AB7;color:#fff;border:none;border-radius:20px;padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.15s;flex-shrink:0}
+.send-btn:hover{background:#3C3489}
+.send-btn:disabled{opacity:0.4;cursor:not-allowed}
+.state-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.state-normal{background:#EEEDFE;color:#3C3489;border:0.5px solid #AFA9EC}
+.state-guided{background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27}
+.state-analysis{background:#EAF3DE;color:#27500A;border:0.5px solid #97C459}
+.state-done{background:#E6F1FB;color:#0C447C;border:0.5px solid #85B7EB}
+.progress-tracker{display:flex;gap:6px;flex-wrap:wrap;padding:10px 1.25rem;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.dim-pill{font-size:11px;padding:3px 9px;border-radius:20px;display:flex;align-items:center;gap:4px}
+.dim-pill.pending{background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary)}
+.dim-pill.done{background:#EAF3DE;border:0.5px solid #97C459;color:#27500A}
+.dim-pill i{font-size:12px}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;margin-bottom:6px;background:var(--color-background-primary);transition:border-color 0.15s}
+.check-item:hover{border-color:#7F77DD}
+.check-item input[type=checkbox]{width:16px;height:16px;margin-top:1px;accent-color:#534AB7;cursor:pointer;flex-shrink:0}
+.check-item label{font-size:13px;color:var(--color-text-primary);cursor:pointer;line-height:1.5}
+.check-item.checked{border-color:#534AB7;background:#EEEDFE}
+.check-item.checked label{color:#3C3489}
+.strength-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.strength-opt{padding:11px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;font-size:13px;text-align:center;background:var(--color-background-primary);color:var(--color-text-primary);transition:all 0.15s;line-height:1.4}
+.strength-opt:hover{border-color:#7F77DD;background:#EEEDFE;color:#534AB7}
+.strength-opt.selected{border-color:#534AB7;background:#EEEDFE;color:#534AB7;font-weight:500}
+.sq{margin-bottom:1rem}
+.sq-text{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:7px;line-height:1.5}
+.gap-item{padding:11px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);margin-bottom:7px;background:var(--color-background-secondary)}
+.gap-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px}
+.gap-root{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.beh-card{padding:14px;border:0.5px solid #AFA9EC;border-radius:var(--border-radius-md);background:#EEEDFE;margin-bottom:8px}
+.beh-num{font-size:11px;font-weight:500;color:#7F77DD;margin-bottom:4px}
+.beh-title{font-size:14px;font-weight:500;color:#3C3489;margin-bottom:4px}
+.beh-desc{font-size:12px;color:#534AB7;line-height:1.5;margin-bottom:7px}
+.beh-leverage{font-size:12px;color:#0F6E56;background:#E1F5EE;border-radius:var(--border-radius-md);padding:5px 9px;margin-bottom:7px;border:0.5px solid #5DCAA5}
+.beh-tags{display:flex;gap:6px;flex-wrap:wrap}
+.beh-tag{font-size:11px;background:#fff;border:0.5px solid #AFA9EC;color:#534AB7;padding:2px 8px;border-radius:20px}
+.course-card{padding:12px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);margin-bottom:7px;background:var(--color-background-primary)}
+.course-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px}
+.course-meta{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px}
+.course-reason{font-size:12px;color:var(--color-text-secondary);line-height:1.4;font-style:italic}
+.course-comp{display:inline-block;font-size:11px;background:#E6F1FB;color:#185FA5;border:0.5px solid #85B7EB;padding:2px 8px;border-radius:20px;margin-top:5px}
+.commit-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;margin-bottom:6px;background:var(--color-background-primary)}
+.commit-row input[type=checkbox]{width:16px;height:16px;margin-top:2px;accent-color:#534AB7;flex-shrink:0;cursor:pointer}
+.commit-row label{font-size:13px;color:var(--color-text-primary);cursor:pointer;line-height:1.5}
+.plan-banner{background:#EAF3DE;border:0.5px solid #97C459;border-radius:var(--border-radius-md);padding:12px 14px;margin-bottom:1rem}
+.plan-banner p{font-size:13px;color:#27500A;line-height:1.6}
+.plan-banner strong{font-weight:500}
+.section-lbl{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-secondary);margin-bottom:8px}
+.followup-msgs{padding:1rem;min-height:120px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;background:var(--color-background-secondary)}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.5);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- STEP 0: Onboarding -->
+  <div id="s0">
+    <div class="step-header">
+      <span class="step-badge">Bước 1 / 5</span>
+      <div>
+        <div class="step-title">Thông tin của bạn</div>
+        <div class="step-sub">Cho AI biết bạn đang ở đâu và muốn đến đâu</div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-s active"></div><div class="prog-s"></div><div class="prog-s"></div><div class="prog-s"></div><div class="prog-s"></div>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>Vai trò hiện tại</label>
+        <input id="currentRole" type="text" placeholder="vd. Software Engineer, Product Manager, Data Analyst..." />
+      </div>
+      <div class="field">
+        <label>Vai trò mục tiêu</label>
+        <input id="targetRole" type="text" placeholder="vd. Senior Engineer, Staff Engineer, Senior PM..." />
+      </div>
+      <div class="field">
+        <label>3 feedback gần đây nhất bạn nhận được <span style="font-weight:400;color:var(--color-text-secondary)">(không bắt buộc)</span></label>
+        <div class="helper">Từ manager, mentor, đồng nghiệp hoặc người hướng dẫn. Nếu bạn là sinh viên hoặc fresh graduate, hãy nhập feedback từ giảng viên, leader CLB, mentor hoặc những người thường xuyên làm việc cùng bạn.</div>
+        <textarea id="managerFeedback" rows="4" placeholder="1. Cần chủ động hơn khi làm việc với stakeholder&#10;2. Kỹ năng phân tích tốt nhưng cần cải thiện khả năng trình bày&#10;3. Thực hiện công việc tốt nhưng chưa thể hiện vai trò dẫn dắt"></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="go1()">Tiếp theo <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+
+  <!-- STEP 1: Strength -->
+  <div id="s1" class="hidden">
+    <div class="step-header">
+      <span class="step-badge">Bước 2 / 5</span>
+      <div>
+        <div class="step-title">Điểm mạnh của bạn</div>
+        <div class="step-sub">4 câu hỏi để xác định Clifton Strengths domain</div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-s done"></div><div class="prog-s active"></div><div class="prog-s"></div><div class="prog-s"></div><div class="prog-s"></div>
+    </div>
+    <div class="card">
+      <div id="sq-wrap"></div>
+      <div class="btn-row">
+        <button class="btn" onclick="show('s1',false);show('s0')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Quay lại</button>
+        <button class="btn btn-primary" id="btn-s1" onclick="go2()" disabled>Tiếp theo <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Coaching -->
+  <div id="s2" class="hidden">
+    <div class="step-header">
+      <span class="step-badge">Bước 3 / 5</span>
+      <div>
+        <div class="step-title">Coaching session</div>
+        <div id="state-indicator" class="step-sub">Trạng thái: <span id="state-txt" class="state-badge state-normal"><i class="ti ti-message-circle" style="font-size:12px" aria-hidden="true"></i> Normal coaching</span></div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s active"></div><div class="prog-s"></div><div class="prog-s"></div>
+    </div>
+    <div class="chat-wrap">
+      <div class="progress-tracker" id="dim-tracker">
+        <span class="dim-pill pending" id="dim-goal"><i class="ti ti-target"></i> Goal</span>
+        <span class="dim-pill pending" id="dim-current_state"><i class="ti ti-activity"></i> Current state</span>
+        <span class="dim-pill pending" id="dim-evidence"><i class="ti ti-clipboard-list"></i> Evidence</span>
+        <span class="dim-pill pending" id="dim-constraint"><i class="ti ti-lock"></i> Constraint</span>
+        <span class="dim-pill pending" id="dim-motivation"><i class="ti ti-heart"></i> Motivation</span>
+      </div>
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-footer" id="chat-footer">
+        <input id="chat-in" type="text" placeholder="Nhập câu trả lời của bạn..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendMsg()" />
+        <button class="send-btn" id="send-btn" onclick="sendMsg()">Gửi</button>
+      </div>
+    </div>
+
+    <!-- Guided Mode UI -->
+    <div id="guided-ui" class="hidden" style="margin-top:1rem">
+      <div class="card">
+        <div style="margin-bottom:1rem">
+          <div style="font-size:15px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px">Chọn những vấn đề gần giống với bạn nhất</div>
+          <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.5">Chọn tất cả những điều đang cản trở bạn. AI sẽ dùng thông tin này để phân tích.</div>
+        </div>
+        <div id="checklist-wrap"></div>
+        <div class="btn-row" style="margin-top:1rem">
+          <button class="btn btn-primary" id="btn-guided" onclick="submitGuided()" disabled>Tiếp tục phân tích <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analyze button -->
+    <div id="analyze-row" class="btn-row hidden">
+      <button class="btn btn-primary" id="btn-analyze" onclick="runAnalysis()">
+        <span id="analyze-lbl">Phân tích &amp; tạo kế hoạch</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Plan -->
+  <div id="s3" class="hidden">
+    <div class="step-header">
+      <span class="step-badge">Bước 4 / 5</span>
+      <div>
+        <div class="step-title">Gap analysis &amp; kế hoạch phát triển</div>
+        <div class="step-sub">Dựa trên coaching session của bạn</div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s active"></div><div class="prog-s"></div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="section-lbl">Năng lực cần phát triển</div>
+      <div id="gaps-out"></div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="section-lbl">3 thay đổi hành vi</div>
+      <div id="behs-out"></div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="section-lbl">Tài nguyên học tập</div>
+      <div id="courses-out"></div>
+    </div>
+    <div class="card">
+      <div class="section-lbl">Cam kết thực hiện (chọn behaviors)</div>
+      <div id="commit-out"></div>
+      <div class="btn-row">
+        <button class="btn" onclick="show('s3',false);show('s2')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Quay lại</button>
+        <button class="btn btn-primary" onclick="go4()">Xác nhận cam kết <i class="ti ti-check" aria-hidden="true"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Follow-up -->
+  <div id="s4" class="hidden">
+    <div class="step-header">
+      <span class="step-badge">Bước 5 / 5</span>
+      <div>
+        <div class="step-title">Chu kỳ phát triển bắt đầu</div>
+        <div class="step-sub">Check-in đầu tiên — AI sẽ follow-up sau 14 ngày</div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s done"></div><div class="prog-s active"></div>
+    </div>
+    <div class="plan-banner" id="plan-banner"></div>
+    <div class="chat-wrap">
+      <div class="followup-msgs" id="fu-msgs"></div>
+      <div class="chat-footer">
+        <input id="fu-in" type="text" placeholder="Phản hồi của bạn..." onkeydown="if(event.key==='Enter')sendFU()" />
+        <button class="send-btn" id="fu-btn" onclick="sendFU()">Gửi</button>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn" onclick="resetAll()"><i class="ti ti-refresh" aria-hidden="true"></i> Chu kỳ mới</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==============================================
+   STATE MACHINE
+   States: ONBOARD | STRENGTH | NORMAL_COACHING
+           | GUIDED_REFLECTION | GAP_ANALYSIS
+           | DEVELOPMENT_PLAN | FOLLOW_UP
+============================================== */
+const S = {
+  appState: 'ONBOARD',
+  currentRole: '', targetRole: '', feedback: '',
+  strength: { primary: '', secondary: '', answers: {} },
+  convo: {
+    messages: [],
+    questionCount: 0,
+    dims: { goal: null, current_state: null, evidence: null, constraint: null, motivation: null },
+    completedDims: new Set(),
+    lastDim: null
+  },
+  guidedSelections: [],
+  plan: { gaps: [], behaviors: [], courses: [] },
+  committed: [],
+  fuHistory: []
+};
+
+const DIMS = ['goal', 'current_state', 'evidence', 'constraint', 'motivation'];
+const DIM_LABELS = {
+  goal: 'Goal', current_state: 'Current state',
+  evidence: 'Evidence', constraint: 'Constraint', motivation: 'Motivation'
+};
+const DIM_ICONS = {
+  goal: 'ti-target', current_state: 'ti-activity',
+  evidence: 'ti-clipboard-list', constraint: 'ti-lock', motivation: 'ti-heart'
+};
+
+const SQS = [
+  {
+    id: 'q1', text: 'Khi gặp vấn đề mới, bạn thường làm gì trước tiên?',
+    opts: ['Phân tích dữ liệu, tìm pattern và root cause', 'Thuyết phục người khác cùng giải quyết', 'Tìm người có kinh nghiệm để tham khảo', 'Lập plan và phân chia tasks ngay']
+  },
+  {
+    id: 'q2', text: 'Đồng nghiệp thường tìm đến bạn để làm gì?',
+    opts: ['Xin ý kiến về chiến lược và hướng đi dài hạn', 'Nhờ thuyết phục hoặc present ý tưởng', 'Kết nối với người khác hoặc tạo động lực', 'Đảm bảo công việc được hoàn thành đúng hạn']
+  },
+  {
+    id: 'q3', text: 'Điều gì khiến bạn có hứng thú làm việc nhất?',
+    opts: ['Khám phá ý tưởng mới và học thứ mình chưa biết', 'Tạo ảnh hưởng và dẫn dắt người khác', 'Xây dựng mối quan hệ bền vững với đồng đội', 'Thực thi và nhìn thấy kết quả cụ thể']
+  },
+  {
+    id: 'q4', text: 'Trong một dự án nhóm, bạn thường đóng vai trò gì?',
+    opts: ['Người đặt câu hỏi chiến lược và nhìn big picture', 'Người motivate và pitch ý tưởng', 'Người kết nối các bên và giải quyết conflict', 'Người ensure tiến độ và quality']
+  }
+];
+const DOMAIN_MAP = { 0: 'Strategic Thinking', 1: 'Influencing', 2: 'Relationship Building', 3: 'Executing' };
+
+const GUIDED_OPTS = [
+  'Thiếu cơ hội dẫn dắt',
+  'Thiếu tự tin khi làm việc với stakeholder',
+  'Chưa rõ kỳ vọng của level tiếp theo',
+  'Thiếu kỹ năng dữ liệu và phân tích',
+  'Chưa có ảnh hưởng tới quyết định của business',
+  'Thiếu feedback thường xuyên',
+  'Khó ưu tiên công việc',
+  'Khác'
+];
+
+function show(id, visible = true) {
+  document.getElementById(id).classList[visible ? 'remove' : 'add']('hidden');
+}
+function scrollChat(id) {
+  const el = document.getElementById(id || 'chat-msgs');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function setAppState(state) {
+  S.appState = state;
+  const labels = {
+    NORMAL_COACHING: 'Normal coaching', GUIDED_REFLECTION: 'Guided reflection',
+    GAP_ANALYSIS: 'Đang phân tích...', DEVELOPMENT_PLAN: 'Kế hoạch sẵn sàng', FOLLOW_UP: 'Follow-up'
+  };
+  const classes = {
+    NORMAL_COACHING: 'state-normal', GUIDED_REFLECTION: 'state-guided',
+    GAP_ANALYSIS: 'state-analysis', DEVELOPMENT_PLAN: 'state-done', FOLLOW_UP: 'state-done'
+  };
+  const icons = {
+    NORMAL_COACHING: 'ti-message-circle', GUIDED_REFLECTION: 'ti-alert-triangle',
+    GAP_ANALYSIS: 'ti-chart-bar', DEVELOPMENT_PLAN: 'ti-check', FOLLOW_UP: 'ti-refresh'
+  };
+  const el = document.getElementById('state-txt');
+  if (el && labels[state]) {
+    el.className = 'state-badge ' + (classes[state] || 'state-normal');
+    el.innerHTML = '<i class="ti ' + (icons[state] || 'ti-message-circle') + '" style="font-size:12px" aria-hidden="true"></i> ' + labels[state];
+  }
+}
+
+function updateDimTracker() {
+  DIMS.forEach(function(d) {
+    var el = document.getElementById('dim-' + d);
+    if (!el) return;
+    if (S.convo.completedDims.has(d)) {
+      el.className = 'dim-pill done';
+      el.innerHTML = '<i class="ti ' + DIM_ICONS[d] + '"></i> ' + DIM_LABELS[d];
+    }
+  });
+}
+
+async function claude(messages, system, maxTokens) {
+  maxTokens = maxTokens || 900;
+  var r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxTokens,
+      system: system || '',
+      messages: messages
+    })
+  });
+  var d = await r.json();
+  return (d.content || []).map(function(c) { return c.text || ''; }).join('') || '';
+}
+
+function addTyping(container) {
+  container = container || 'chat-msgs';
+  var div = document.getElementById(container);
+  var w = document.createElement('div'); w.className = 'typing-wrap'; w.id = 'typing-' + container;
+  var t = document.createElement('div'); t.className = 'typing';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  w.appendChild(t); div.appendChild(w); scrollChat(container);
+}
+function removeTyping(container) {
+  container = container || 'chat-msgs';
+  var el = document.getElementById('typing-' + container);
+  if (el) el.remove();
+}
+
+function addChatMsg(role, html, dim, container) {
+  container = container || 'chat-msgs';
+  var div = document.getElementById(container);
+  var wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  var inner = '';
+  if (role === 'ai' && dim && DIM_ICONS[dim]) {
+    inner += '<div class="msg-dim"><i class="ti ' + DIM_ICONS[dim] + '" aria-hidden="true"></i>' + (DIM_LABELS[dim] || '') + '</div>';
+  }
+  inner += html.replace(/\n/g, '<br>');
+  wrap.innerHTML = '<div class="msg-inner">' + inner + '</div>';
+  div.appendChild(wrap);
+  scrollChat(container);
+}
+
+/* ── Step 0 → 1 ── */
+function go1() {
+  var r = document.getElementById('currentRole').value.trim();
+  var t = document.getElementById('targetRole').value.trim();
+  if (!r || !t) { alert('Vui lòng điền vai trò hiện tại và mục tiêu.'); return; }
+  S.currentRole = r; S.targetRole = t;
+  S.feedback = document.getElementById('managerFeedback').value.trim();
+  buildSQ();
+  show('s0', false); show('s1');
+}
+
+function buildSQ() {
+  var w = document.getElementById('sq-wrap'); w.innerHTML = '';
+  SQS.forEach(function(q, qi) {
+    var d = document.createElement('div'); d.className = 'sq';
+    d.innerHTML = '<div class="sq-text">' + (qi + 1) + '. ' + q.text + '</div><div class="strength-grid" id="sg-' + q.id + '"></div>';
+    w.appendChild(d);
+    q.opts.forEach(function(o, oi) {
+      var b = document.createElement('div'); b.className = 'strength-opt'; b.textContent = o;
+      b.onclick = (function(qid, idx) { return function() { pickOpt(qid, idx); }; })(q.id, oi);
+      d.querySelector('.strength-grid').appendChild(b);
+    });
+  });
+}
+
+function pickOpt(qid, idx) {
+  document.querySelectorAll('#sg-' + qid + ' .strength-opt').forEach(function(b) { b.classList.remove('selected'); });
+  var opts = document.querySelectorAll('#sg-' + qid + ' .strength-opt');
+  if (opts[idx]) opts[idx].classList.add('selected');
+  S.strength.answers[qid] = idx;
+  if (Object.keys(S.strength.answers).length >= 4) document.getElementById('btn-s1').disabled = false;
+}
+
+/* ── Step 1 → 2 ── */
+function go2() {
+  var counts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+  Object.values(S.strength.answers).forEach(function(v) { counts[v]++; });
+  var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
+  S.strength.primary = DOMAIN_MAP[sorted[0][0]];
+  S.strength.secondary = DOMAIN_MAP[sorted[1][0]];
+  show('s1', false); show('s2');
+  setAppState('NORMAL_COACHING');
+  startCoaching();
+}
+
+/* ── Coaching system prompt ── */
+function buildCoachSysPrompt() {
+  var dimStatus = DIMS.map(function(d) {
+    return DIM_LABELS[d] + ': ' + (S.convo.completedDims.has(d) ? '✓ đủ' : (S.convo.dims[d] || 'chưa có'));
+  }).join('\n');
+  var remaining = DIMS.filter(function(d) { return !S.convo.completedDims.has(d); });
+
+  return 'Bạn là AI Career Development Coach chuyên nghiệp. Nhiệm vụ: thu thập đủ context để phân tích career gap.\n\nTHÔNG TIN NGƯỜI DÙNG:\n- Vai trò hiện tại: ' + S.currentRole + '\n- Mục tiêu: ' + S.targetRole + '\n- Điểm mạnh: ' + S.strength.primary + ' (chính), ' + S.strength.secondary + ' (phụ)\n- Feedback nhận được: ' + (S.feedback || 'Không có') + '\n\nTRANG THÁI (' + S.convo.questionCount + ' câu đã hỏi):\n' + dimStatus + '\n\nQUY TẮC TUYỆT ĐỐI:\n1. KHÔNG BAO GIỜ dùng: "Hãy chia sẻ thêm", "Nói rõ hơn", "Tiếp tục nhé", "Cảm ơn, hãy chia sẻ thêm", "Bạn có thể chia sẻ thêm không?"\n2. Mỗi câu hỏi PHẢI thuộc đúng 1 dimension: GOAL / CURRENT_STATE / EVIDENCE / CONSTRAINT / MOTIVATION\n3. Chỉ hỏi 1 câu mỗi lượt. Không ghép 2 dimension vào 1 câu.\n4. Câu hỏi phải cụ thể, bối cảnh hóa theo role "' + S.currentRole + '" → "' + S.targetRole + '"\n5. Đã đủ Goal + Current State + Evidence VÀ hỏi >= 3 câu → DỪNG, readyForAnalysis: true\n6. Tối đa 5 câu hỏi → readyForAnalysis: true\n7. Leverage strength "' + S.strength.primary + '" khi đặt câu hỏi\n\nDIMENSION CẦN HỎI TIẾP: ' + (remaining[0] || 'Đã đủ — kết thúc') + '\n\nVÍ DỤ CÂU HỎI ĐÚNG CHUẨN:\n- Goal: "Điều gì cụ thể khiến bạn muốn chuyển từ ' + S.currentRole + ' lên ' + S.targetRole + ' vào lúc này?"\n- Current State: "Hiện tại bạn đã tham gia những hoạt động nào gần giống với ' + S.targetRole + ' chưa?"\n- Evidence: "Bạn có thể kể một tình huống gần đây mà bạn cảm thấy mình chưa đủ năng lực để xử lý tốt không?"\n- Constraint: "Điều gì đang thực sự cản trở bạn tiến đến ' + S.targetRole + ' nhất hiện tại?"\n- Motivation: "Nếu đạt được ' + S.targetRole + ' trong 1 năm, điều gì sẽ thay đổi trong công việc hàng ngày của bạn?"\n\nFORMAT TRẢ LỜI — JSON thuần, không markdown, không backtick:\n{\n  "dimension": "goal|current_state|evidence|constraint|motivation",\n  "question": "câu hỏi coaching cụ thể",\n  "extractedInfo": "thông tin rút ra từ câu trả lời user (để trống nếu là câu mở đầu)",\n  "readyForAnalysis": false\n}\n\nKhi đủ context: "readyForAnalysis": true, "question": "Cảm ơn bạn đã chia sẻ. Tôi đã có đủ thông tin để phân tích cho bạn."';
+}
+
+async function startCoaching() {
+  addTyping('chat-msgs');
+  try {
+    var raw = await claude([{ role: 'user', content: 'Bắt đầu coaching. Hỏi câu đầu tiên về Goal.' }], buildCoachSysPrompt());
+    removeTyping('chat-msgs');
+    var parsed = parseCoachReply(raw);
+    if (!parsed) {
+      addChatMsg('ai', 'Điều gì cụ thể khiến bạn muốn chuyển từ ' + S.currentRole + ' lên ' + S.targetRole + ' vào lúc này?', 'goal');
+      S.convo.lastDim = 'goal'; S.convo.questionCount++;
+      S.convo.messages.push({ role: 'assistant', content: 'Điều gì cụ thể khiến bạn muốn chuyển?' });
+      return;
+    }
+    handleCoachReply(parsed, false);
+  } catch (e) {
+    removeTyping('chat-msgs');
+    var q = 'Điều gì cụ thể khiến bạn muốn chuyển từ ' + S.currentRole + ' lên ' + S.targetRole + ' vào lúc này?';
+    addChatMsg('ai', q, 'goal');
+    S.convo.lastDim = 'goal'; S.convo.questionCount++;
+    S.convo.messages.push({ role: 'assistant', content: q });
+  }
+}
+
+function parseCoachReply(raw) {
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    var m = raw.match(/"question"\s*:\s*"([^"]+)"/);
+    if (m) return { dimension: 'goal', question: m[1], extractedInfo: '', readyForAnalysis: false };
+    return null;
+  }
+}
+
+function handleCoachReply(parsed, isResponse) {
+  if (isResponse && parsed.extractedInfo && S.convo.lastDim) {
+    S.convo.dims[S.convo.lastDim] = parsed.extractedInfo;
+    S.convo.completedDims.add(S.convo.lastDim);
+    updateDimTracker();
+  }
+
+  var coreComplete = S.convo.completedDims.has('goal') &&
+                     S.convo.completedDims.has('current_state') &&
+                     S.convo.completedDims.has('evidence');
+  var hitLimit = S.convo.questionCount >= 5;
+
+  if (parsed.readyForAnalysis || (coreComplete && S.convo.questionCount >= 3) || hitLimit) {
+    if (parsed.question && parsed.readyForAnalysis) {
+      addChatMsg('ai', parsed.question, parsed.dimension);
+    }
+    setTimeout(function() {
+      addChatMsg('system-note', 'Đã thu thập đủ thông tin. Nhấn "Phân tích & tạo kế hoạch" để tiếp tục.');
+      document.getElementById('chat-footer').classList.add('hidden');
+      show('analyze-row');
+    }, 400);
+    return;
+  }
+
+  if (parsed.question) {
+    addChatMsg('ai', parsed.question, parsed.dimension);
+    S.convo.lastDim = parsed.dimension;
+    S.convo.questionCount++;
+    S.convo.messages.push({ role: 'assistant', content: parsed.question });
+  }
+}
+
+/* ── Self-awareness detection ── */
+function detectLowAwareness() {
+  var userMsgs = S.convo.messages.filter(function(m) { return m.role === 'user'; }).map(function(m) { return m.content; });
+  if (userMsgs.length < 3) return false;
+  var flags = 0;
+  var vague = ['không biết', 'bình thường', 'không rõ', 'ổn', 'ok', 'vậy thôi', 'bình thường thôi'];
+  var blame = ['manager không', 'công ty không', 'team không', 'không có cơ hội', 'họ không', 'sếp không'];
+  var shortCount = userMsgs.filter(function(m) { return m.split(/\s+/).length < 6; }).length;
+  if (shortCount >= 2) flags++;
+  if (userMsgs.filter(function(m) { return vague.some(function(v) { return m.toLowerCase().indexOf(v) >= 0; }); }).length >= 2) flags++;
+  if (userMsgs.filter(function(m) { return blame.some(function(v) { return m.toLowerCase().indexOf(v) >= 0; }); }).length >= 2) flags++;
+  return flags >= 2;
+}
+
+async function sendMsg() {
+  var inp = document.getElementById('chat-in');
+  var txt = inp.value.trim();
+  if (!txt || S.appState !== 'NORMAL_COACHING') return;
+  inp.value = '';
+  addChatMsg('user', txt);
+  S.convo.messages.push({ role: 'user', content: txt });
+  document.getElementById('send-btn').disabled = true;
+
+  if (S.convo.messages.filter(function(m) { return m.role === 'user'; }).length >= 3 && detectLowAwareness()) {
+    triggerGuidedMode();
+    document.getElementById('send-btn').disabled = false;
+    return;
+  }
+
+  var sys = buildCoachSysPrompt();
+  var apiMsgs = S.convo.messages
+    .filter(function(m) { return m.role === 'user' || m.role === 'assistant'; })
+    .map(function(m) { return { role: m.role, content: m.content }; });
+
+  addTyping('chat-msgs');
+  try {
+    var raw = await claude(apiMsgs, sys);
+    removeTyping('chat-msgs');
+    var parsed = parseCoachReply(raw);
+    if (!parsed) {
+      var fb = getFallbackQuestion();
+      addChatMsg('ai', fb.question, fb.dim);
+      S.convo.lastDim = fb.dim; S.convo.questionCount++;
+      S.convo.messages.push({ role: 'assistant', content: fb.question });
+    } else {
+      handleCoachReply(parsed, true);
+    }
+  } catch (e) {
+    removeTyping('chat-msgs');
+    var fb2 = getFallbackQuestion();
+    addChatMsg('ai', fb2.question, fb2.dim);
+    S.convo.messages.push({ role: 'assistant', content: fb2.question });
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function getFallbackQuestion() {
+  var remaining = DIMS.filter(function(d) { return !S.convo.completedDims.has(d); });
+  var dim = remaining[0] || 'evidence';
+  var fq = {
+    goal: 'Mục tiêu cụ thể của bạn khi muốn đạt vị trí ' + S.targetRole + ' là gì?',
+    current_state: 'Hiện tại trong vai trò ' + S.currentRole + ', bạn đã có những trải nghiệm nào gần giống với ' + S.targetRole + ' chưa?',
+    evidence: 'Bạn có thể kể một tình huống cụ thể mà bạn cảm thấy thiếu hụt để đạt được ' + S.targetRole + ' không?',
+    constraint: 'Điều gì đang thực sự cản trở bạn nhất trên con đường tiến đến ' + S.targetRole + '?',
+    motivation: 'Nếu đạt được ' + S.targetRole + ', điều gì sẽ thay đổi trong công việc của bạn?'
+  };
+  return { question: fq[dim], dim: dim };
+}
+
+/* ── Guided Mode ── */
+function triggerGuidedMode() {
+  setAppState('GUIDED_REFLECTION');
+  document.getElementById('chat-footer').classList.add('hidden');
+  show('analyze-row', false);
+
+  addChatMsg('warning-note',
+    '<strong><i class="ti ti-alert-triangle" aria-hidden="true"></i>&nbsp;Tôi chưa có đủ thông tin để hiểu rõ tình huống của bạn.</strong>\nBạn có thể chọn các vấn đề gần giống với mình nhất bên dưới.\n<div class="note">Lưu ý: Kết quả coaching sẽ kém chính xác hơn vì AI đang dựa trên lựa chọn thay vì bối cảnh thực tế và ví dụ cụ thể từ bạn.</div>'
+  );
+
+  show('guided-ui');
+  var wrap = document.getElementById('checklist-wrap'); wrap.innerHTML = '';
+  GUIDED_OPTS.forEach(function(opt, i) {
+    var row = document.createElement('div');
+    row.className = 'check-item'; row.id = 'ci-' + i;
+    row.innerHTML = '<input type="checkbox" id="co-' + i + '" value="' + opt + '"><label for="co-' + i + '">' + opt + '</label>';
+    row.onclick = function(e) {
+      var cb = row.querySelector('input');
+      if (e.target !== cb) cb.checked = !cb.checked;
+      row.classList.toggle('checked', cb.checked);
+      var any = document.querySelectorAll('#checklist-wrap input:checked').length > 0;
+      document.getElementById('btn-guided').disabled = !any;
+    };
+    wrap.appendChild(row);
+  });
+}
+
+function submitGuided() {
+  var checks = document.querySelectorAll('#checklist-wrap input:checked');
+  S.guidedSelections = Array.from(checks).map(function(c) { return c.value; });
+  show('guided-ui', false);
+  addChatMsg('system-note', 'Đã ghi nhận. Tiến hành phân tích với ngữ cảnh bổ sung...');
+  show('analyze-row');
+  document.getElementById('btn-analyze').click();
+}
+
+/* ── Gap Analysis + Plan ── */
+async function runAnalysis() {
+  setAppState('GAP_ANALYSIS');
+  var btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  document.getElementById('analyze-lbl').innerHTML = '<span class="spinner"></span> Đang phân tích...';
+
+  var convoStr = S.convo.messages
+    .map(function(m) { return (m.role === 'user' ? 'Người dùng' : 'Coach') + ': ' + m.content; })
+    .join('\n');
+  var guidedStr = S.guidedSelections.length
+    ? '\nNgữ cảnh bổ sung (Guided Mode): ' + S.guidedSelections.join(', ')
+    : '';
+
+  var prompt = 'Phân tích gap và tạo development plan. Trả về JSON thuần (không markdown, không backtick):\n\n{\n  "gaps": [\n    {"title":"Tên năng lực cụ thể","rootCause":"Nguyên nhân thực sự, không phải triệu chứng"}\n  ],\n  "behaviors": [\n    {\n      "title":"Hành vi observable và measurable (động từ + object + tần suất)",\n      "description":"Mô tả chi tiết cách thực hiện",\n      "strengthLeverage":"Cách dùng ' + S.strength.primary + ' để thực hiện behavior này",\n      "frequency":"Tần suất cụ thể",\n      "checkpointDays":14,\n      "deadlineDays":60\n    }\n  ],\n  "courses": [\n    {\n      "courseName":"TÊN CHÍNH XÁC khóa học",\n      "instructor":"Tên instructor chính xác",\n      "platform":"Tên platform",\n      "reason":"Lý do cụ thể liên quan đến gap",\n      "competency":"Năng lực được mapping"\n    }\n  ]\n}\n\nDỮ LIỆU:\n- Vai trò: ' + S.currentRole + ' → ' + S.targetRole + '\n- Điểm mạnh: ' + S.strength.primary + ' (chính), ' + S.strength.secondary + ' (phụ)\n- Feedback: ' + (S.feedback || 'Không có') + '\n- Coaching conversation:\n' + convoStr + guidedStr + '\n\nQUY TẮC NGHIÊM NGẶT:\n1. Tối đa 3 gaps, 3 behaviors, 3 courses\n2. Behaviors PHẢI có format: động từ + object + tần suất. VD: "Lead 1 technical discussion mỗi sprint"\n3. KHÔNG tạo behavior chung chung như "Cải thiện giao tiếp"\n4. Courses: CHỈ recommend courses có thật. Nếu không chắc, dùng: "The Staff Engineer\'s Path" (Tanya Reilly, O\'Reilly), "The Manager\'s Path" (Camille Fournier, O\'Reilly), "Influence Without Authority" (Allan Cohen & David Bradford), "Machine Learning Specialization" (Andrew Ng, Coursera)\n5. strengthLeverage PHẢI explicit — nêu rõ cách dùng ' + S.strength.primary + '\n6. Root cause: tìm nguyên nhân thực sự, không mô tả triệu chứng\n7. Context: công ty tech VN (ZaloPay, VNG, MoMo, Shopee, Tiki)';
+
+  try {
+    var raw = await claude([{ role: 'user', content: prompt }], '', 1200);
+    var json;
+    try { json = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+    catch (e) {
+      json = {
+        gaps: [
+          { title: 'Technical Leadership & Scope Expansion', rootCause: 'Chưa có cơ hội demonstrate impact ngoài phạm vi team — thiếu visibility với leadership và cross-functional stakeholders' },
+          { title: 'Stakeholder Influence', rootCause: 'Chưa build được trust với non-technical stakeholders, khó translate technical decisions thành business value' }
+        ],
+        behaviors: [
+          { title: 'Dẫn dắt 1 cross-team technical discussion mỗi sprint', description: 'Propose và facilitate một buổi technical review/RFC với ít nhất 1 người từ team khác. Document kết quả và send summary.', strengthLeverage: 'Dùng ' + S.strength.primary + ' để frame discussion theo hướng strategic — đặt câu hỏi về long-term impact thay vì chỉ tactical.', frequency: '1 lần/2 tuần', checkpointDays: 14, deadlineDays: 60 },
+          { title: 'Present 1 technical proposal mỗi tháng cho manager', description: 'Chuẩn bị 1-page proposal cho một technical decision, bao gồm trade-offs và business impact. Present trực tiếp.', strengthLeverage: 'Leverage ' + S.strength.primary + ' để structure proposal theo business outcomes, không chỉ technical specs.', frequency: '1 lần/tháng', checkpointDays: 14, deadlineDays: 60 },
+          { title: 'Request structured feedback sau mỗi stakeholder interaction', description: 'Sau mỗi meeting với stakeholder, send follow-up email tóm tắt và hỏi 1 câu feedback cụ thể.', strengthLeverage: 'Dùng ' + S.strength.primary + ' để tổng hợp feedback thành patterns và improvement areas.', frequency: 'Sau mỗi stakeholder meeting', checkpointDays: 14, deadlineDays: 60 }
+        ],
+        courses: [
+          { courseName: "The Staff Engineer's Path", instructor: 'Tanya Reilly', platform: "O'Reilly / Sách", reason: 'Roadmap chi tiết cho IC leadership path, áp dụng trực tiếp cho tech companies VN', competency: 'Technical Leadership' },
+          { courseName: 'Influence Without Authority', instructor: 'Allan Cohen & David Bradford', platform: 'Sách', reason: 'Framework thực tiễn để influence stakeholders không có direct authority', competency: 'Stakeholder Influence' },
+          { courseName: 'Communication for Engineers', instructor: 'Lara Hogan', platform: 'larahogan.me / Sách', reason: 'Tactical guide về engineering communication — proposals, RFCs, presentations', competency: 'Engineering Communication' }
+        ]
+      };
+    }
+    S.plan = json;
+    renderPlan();
+    show('s2', false); show('s3');
+    setAppState('DEVELOPMENT_PLAN');
+  } catch (e) {
+    btn.disabled = false;
+    document.getElementById('analyze-lbl').textContent = 'Phân tích & tạo kế hoạch';
+    alert('Có lỗi, vui lòng thử lại.');
+  }
+}
+
+function renderPlan() {
+  document.getElementById('gaps-out').innerHTML = (S.plan.gaps || []).map(function(g) {
+    return '<div class="gap-item"><div class="gap-title">' + g.title + '</div><div class="gap-root">' + g.rootCause + '</div></div>';
+  }).join('');
+
+  document.getElementById('behs-out').innerHTML = (S.plan.behaviors || []).map(function(b, i) {
+    return '<div class="beh-card">' +
+      '<div class="beh-num">Hành vi ' + (i + 1) + '</div>' +
+      '<div class="beh-title">' + b.title + '</div>' +
+      '<div class="beh-desc">' + b.description + '</div>' +
+      (b.strengthLeverage ? '<div class="beh-leverage"><i class="ti ti-star" style="font-size:12px;margin-right:4px" aria-hidden="true"></i>' + b.strengthLeverage + '</div>' : '') +
+      '<div class="beh-tags">' +
+        '<span class="beh-tag"><i class="ti ti-refresh" style="font-size:11px" aria-hidden="true"></i> ' + b.frequency + '</span>' +
+        '<span class="beh-tag"><i class="ti ti-calendar" style="font-size:11px" aria-hidden="true"></i> Check-in ngày ' + b.checkpointDays + '</span>' +
+        '<span class="beh-tag"><i class="ti ti-clock" style="font-size:11px" aria-hidden="true"></i> ' + b.deadlineDays + ' ngày</span>' +
+      '</div></div>';
+  }).join('');
+
+  document.getElementById('courses-out').innerHTML = (S.plan.courses || []).map(function(c) {
+    return '<div class="course-card">' +
+      '<div class="course-title">' + c.courseName + '</div>' +
+      '<div class="course-meta">' + c.instructor + ' · ' + c.platform + '</div>' +
+      '<div class="course-reason">' + c.reason + '</div>' +
+      '<span class="course-comp">' + c.competency + '</span>' +
+      '</div>';
+  }).join('');
+
+  document.getElementById('commit-out').innerHTML = (S.plan.behaviors || []).map(function(b, i) {
+    return '<label class="commit-row">' +
+      '<input type="checkbox" id="cb' + i + '" checked>' +
+      '<span><strong>' + b.title + '</strong><br><span style="font-size:12px;color:var(--color-text-secondary)">' + b.frequency + '</span></span>' +
+      '</label>';
+  }).join('');
+}
+
+function go4() {
+  var checked = document.querySelectorAll('#commit-out input:checked');
+  if (!checked.length) { alert('Hãy chọn ít nhất 1 hành vi.'); return; }
+  S.committed = Array.from(checked).map(function(c) { return S.plan.behaviors[parseInt(c.id.replace('cb', ''))]; });
+  document.getElementById('plan-banner').innerHTML =
+    '<p><strong>Chu kỳ phát triển 60 ngày đã bắt đầu!</strong><br/>' +
+    'Bạn đã cam kết <strong>' + S.committed.length + ' hành vi</strong>. Check-in đầu tiên sau <strong>14 ngày</strong>.<br/>' +
+    S.committed.map(function(b) { return b.title; }).join(' · ') + '</p>';
+  show('s3', false); show('s4');
+  setAppState('FOLLOW_UP');
+  startFollowup();
+}
+
+async function startFollowup() {
+  var behs = S.committed.map(function(b) { return b.title; }).join(', ');
+  addTyping('fu-msgs');
+  try {
+    var sys = 'Bạn là AI Development Coach. Người dùng vừa commit ' + S.committed.length + ' behavior changes: ' + behs + '.\nRole: ' + S.currentRole + ' → ' + S.targetRole + '. Strength: ' + S.strength.primary + '.\nHỏi check-in đầu tiên: họ cảm thấy thế nào về kế hoạch, behavior nào có vẻ dễ bắt đầu nhất?\nNgắn gọn, warm, cụ thể. Tiếng Việt. KHÔNG hỏi generic. KHÔNG dùng "Hãy chia sẻ thêm".';
+    var reply = await claude([{ role: 'user', content: 'Bắt đầu follow-up' }], sys, 600);
+    removeTyping('fu-msgs');
+    addChatMsg('ai', reply, null, 'fu-msgs');
+    S.fuHistory.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    removeTyping('fu-msgs');
+    addChatMsg('ai', 'Bạn đã sẵn sàng rồi! Trong ' + S.committed.length + ' hành vi bạn cam kết, bạn nghĩ hành vi nào có thể bắt đầu ngay tuần này?', null, 'fu-msgs');
+  }
+}
+
+async function sendFU() {
+  var inp = document.getElementById('fu-in');
+  var txt = inp.value.trim(); if (!txt) return;
+  inp.value = '';
+  addChatMsg('user', txt, null, 'fu-msgs');
+  S.fuHistory.push({ role: 'user', content: txt });
+  document.getElementById('fu-btn').disabled = true;
+  addTyping('fu-msgs');
+  try {
+    var sys = 'AI Development Coach follow-up. Committed behaviors: ' + S.committed.map(function(b) { return b.title; }).join(', ') + '.\nRole: ' + S.currentRole + ' → ' + S.targetRole + '. Strength: ' + S.strength.primary + '.\nPhản hồi coaching — đặt câu hỏi sâu hơn nếu cần, hoặc đưa ra gợi ý cụ thể và actionable.\nKHÔNG dùng "Hãy chia sẻ thêm". Mỗi câu hỏi phải có objective rõ ràng. Tiếng Việt.';
+    var reply = await claude(S.fuHistory.slice(), sys, 700);
+    removeTyping('fu-msgs');
+    addChatMsg('ai', reply, null, 'fu-msgs');
+    S.fuHistory.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    removeTyping('fu-msgs');
+    addChatMsg('ai', 'Tuần tới hãy thử thực hiện 1 lần xem sao nhé.', null, 'fu-msgs');
+  }
+  document.getElementById('fu-btn').disabled = false;
+}
+
+function resetAll() {
+  S.appState = 'ONBOARD'; S.currentRole = ''; S.targetRole = ''; S.feedback = '';
+  S.strength = { primary: '', secondary: '', answers: {} };
+  S.convo = { messages: [], questionCount: 0, dims: { goal: null, current_state: null, evidence: null, constraint: null, motivation: null }, completedDims: new Set(), lastDim: null };
+  S.guidedSelections = []; S.plan = { gaps: [], behaviors: [], courses: [] }; S.committed = []; S.fuHistory = [];
+  ['currentRole', 'targetRole', 'managerFeedback'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('chat-msgs').innerHTML = '';
+  document.getElementById('fu-msgs').innerHTML = '';
+  document.getElementById('chat-footer').classList.remove('hidden');
+  show('analyze-row', false);
+  show('guided-ui', false);
+  ['s1', 's2', 's3', 's4'].forEach(function(id) { show(id, false); });
+  show('s0');
+  DIMS.forEach(function(d) {
+    var el = document.getElementById('dim-' + d);
+    if (el) { el.className = 'dim-pill pending'; el.innerHTML = '<i class="ti ' + DIM_ICONS[d] + '"></i> ' + DIM_LABELS[d]; }
+  });
+  document.getElementById('btn-s1').disabled = true;
+}
+</script>
+</body>
+</html>
