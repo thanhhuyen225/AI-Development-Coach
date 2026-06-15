@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Development Coach v2</title>
+<title>AI Development Coach v3</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -129,6 +129,14 @@ textarea:focus{border-color:#534AB7}
 .followup-msgs{padding:1rem;min-height:120px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;background:var(--color-background-secondary)}
 .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.5);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.level-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.level-opt{padding:10px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);transition:all 0.15s;line-height:1.4}
+.level-opt:hover{border-color:#7F77DD;background:#EEEDFE;color:#534AB7}
+.level-opt.selected{border-color:#534AB7;background:#EEEDFE;color:#534AB7;font-weight:500}
+.level-opt .lv-title{font-weight:500;margin-bottom:2px}
+.level-opt .lv-sub{font-size:11px;color:var(--color-text-secondary)}
+.level-opt.selected .lv-sub{color:#7F77DD}
+.fw-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#EAF3DE;color:#27500A;border:0.5px solid #97C459;padding:3px 9px;border-radius:20px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -159,6 +167,17 @@ textarea:focus{border-color:#534AB7}
         <label>3 feedback gần đây nhất bạn nhận được <span style="font-weight:400;color:var(--color-text-secondary)">(không bắt buộc)</span></label>
         <div class="helper">Từ manager, mentor, đồng nghiệp hoặc người hướng dẫn. Nếu bạn là sinh viên hoặc fresh graduate, hãy nhập feedback từ giảng viên, leader CLB, mentor hoặc những người thường xuyên làm việc cùng bạn.</div>
         <textarea id="managerFeedback" rows="4" placeholder="1. Cần chủ động hơn khi làm việc với stakeholder&#10;2. Kỹ năng phân tích tốt nhưng cần cải thiện khả năng trình bày&#10;3. Thực hiện công việc tốt nhưng chưa thể hiện vai trò dẫn dắt"></textarea>
+      </div>
+      <div class="field">
+        <label>Cấp độ hiện tại của bạn</label>
+        <div class="helper">Dùng để chọn đúng khung năng lực phù hợp với bạn.</div>
+        <div class="level-grid" id="level-grid">
+          <div class="level-opt" data-level="L1" onclick="pickLevel('L1',this)"><div class="lv-title">Individual Contributor (L1)</div><div class="lv-sub">Tự thực hiện, phát triển chuyên môn</div></div>
+          <div class="level-opt" data-level="L2" onclick="pickLevel('L2',this)"><div class="lv-title">First-line Manager (L2)</div><div class="lv-sub">Quản lý nhóm IC trực tiếp</div></div>
+          <div class="level-opt" data-level="L3" onclick="pickLevel('L3',this)"><div class="lv-title">Middle Manager (L3)</div><div class="lv-sub">Quản lý function / department</div></div>
+          <div class="level-opt" data-level="L4" onclick="pickLevel('L4',this)"><div class="lv-title">Company Leader (L4)</div><div class="lv-sub">Định hướng chiến lược tổ chức</div></div>
+        </div>
+        <div id="fw-loaded" class="hidden"><span class="fw-badge"><i class="ti ti-check" aria-hidden="true"></i> Competency framework đã được nạp</span></div>
       </div>
     </div>
     <div class="btn-row">
@@ -299,14 +318,129 @@ textarea:focus{border-color:#534AB7}
 
 <script>
 /* ==============================================
-   STATE MACHINE
-   States: ONBOARD | STRENGTH | NORMAL_COACHING
-           | GUIDED_REFLECTION | GAP_ANALYSIS
-           | DEVELOPMENT_PLAN | FOLLOW_UP
+   FR-03: COMPETENCY FRAMEWORK (from Deel Engage template)
+   Keyed by department → array of competency objects
+   Career levels: L1 IC | L2 First-line Mgr | L3 Middle Mgr | L4 Company Leader
 ============================================== */
+const CAREER_LEVELS = {
+  L1: { label: 'Individual Contributor', focus: 'Functional expertise, communication, critical thinking, problem solving. Scope: lead themselves.' },
+  L2: { label: 'First-line Manager', focus: 'Coaching, delegation, EQ, conflict management. Scope: lead a team of ICs.' },
+  L3: { label: 'Middle Manager', focus: 'Systems thinking, strategic planning, stakeholder influence, managing managers. Scope: lead a function or department.' },
+  L4: { label: 'Company Leader', focus: 'Enterprise leadership, strategic decisions, external influence, org design. Scope: lead multiple functions or verticals.' }
+};
+
+const CORE_COMPETENCIES = [
+  { name: 'Action orientation', levels: { Basic:'Takes on tasks, seeks guidance.', Intermediate:'Sets goals, meets deadlines.', Competent:'Drives projects, overcomes obstacles.', Advanced:'Mentors others on accountability.', Expert:'Fosters action-oriented culture.' } },
+  { name: 'Adaptability', levels: { Basic:'Reacts positively to change.', Intermediate:'Adjusts to new methods/teams.', Competent:'Anticipates change, prepares teams.', Advanced:'Models flexibility, drives adaptive strategies.', Expert:'Leads organizational resilience.' } },
+  { name: 'Critical thinking', levels: { Basic:'Identifies simple problems.', Intermediate:'Analyzes basic problems.', Competent:'Evaluates complex problems.', Advanced:'Solves complex problems, identifies patterns.', Expert:'Anticipates problems, drives improvements.' } },
+  { name: 'Strategic thinking', levels: { Basic:'Understands team strategies.', Intermediate:'Evaluates market trends.', Competent:'Crafts multi-driver strategies.', Advanced:'Drives strategic initiatives.', Expert:'Sets organizational strategic direction.' } },
+  { name: 'Impact and influence', levels: { Basic:'Uses communication to influence team.', Intermediate:'Builds credibility, applies influence tactics.', Competent:'Persuades peers and managers.', Advanced:'Strategically influences outcomes.', Expert:'Drives organizational-level initiatives.' } },
+  { name: 'Ownership', levels: { Basic:'Takes responsibility for assigned tasks.', Intermediate:'Holds self accountable, learns from mistakes.', Competent:'Proactively addresses issues, drives improvements.', Advanced:'Mentors others in accountability.', Expert:'Ensures team ownership culture.' } },
+  { name: 'Innovation', levels: { Basic:'Participates in brainstorming.', Intermediate:'Contributes innovative ideas.', Competent:'Leads team innovation.', Advanced:'Drives innovation programs.', Expert:'Sets vision for industry-level innovation.' } },
+  { name: 'Leadership', levels: { Basic:'Demonstrates basic leadership, follows ethics.', Intermediate:'Manages small projects, motivates others.', Competent:'Leads teams, sets strategic goals.', Advanced:'Inspires departments, fosters leadership.', Expert:'Sets organizational direction.' } },
+  { name: 'Oral communication', levels: { Basic:'Communicates clearly 1:1.', Intermediate:'Presents in small groups.', Competent:'Delivers compelling presentations.', Advanced:'Influences through persuasive speaking.', Expert:'Sets org standard for communication.' } },
+  { name: 'Written communication', levels: { Basic:'Writes clear simple messages.', Intermediate:'Communicates effectively in various formats.', Competent:'Crafts complex documents with precision.', Advanced:'Develops compelling arguments.', Expert:'Sets organizational writing standards.' } },
+  { name: 'Giving and receiving feedback', levels: { Basic:'Receptive to feedback.', Intermediate:'Proactively asks for feedback.', Competent:'Asks for and gives constructive feedback.', Advanced:'Helps others succeed through constant feedback.', Expert:'Fosters feedback culture in team.' } },
+  { name: 'Self-awareness', levels: { Basic:'Aware of strengths and weaknesses.', Intermediate:'Recognizes emotions and their impact.', Competent:'Manages emotions, seeks feedback.', Advanced:'Optimizes emotional intelligence.', Expert:'Encourages team self-awareness.' } },
+  { name: 'Resilience', levels: { Basic:'Positive attitude, seeks guidance.', Intermediate:'Bounces back, manages stress.', Competent:'Strong problem-solving, supports juniors.', Advanced:'Mentors others in resilience.', Expert:'Fosters resilient team culture.' } },
+  { name: 'Continuous improvement', levels: { Basic:'Identifies small improvements.', Intermediate:'Analyzes processes, implements fixes.', Competent:'Champions improvement projects.', Advanced:'Drives culture of improvement.', Expert:'Sets vision for org-wide improvement.' } },
+  { name: 'Decision making', levels: { Basic:'Makes simple decisions.', Intermediate:'Evaluates options, uses experience.', Competent:'Analyzes complex info for strategic decisions.', Advanced:'Facilitates decision processes.', Expert:'Drives high-stakes organizational decisions.' } }
+];
+
+const FUNCTIONAL_COMPETENCIES = {
+  Engineering: [
+    { name: 'Quality assurance', desc: 'Ensure products/services meet or exceed standards.' },
+    { name: 'Project planning', desc: 'Develop and implement plans for achieving project goals.' },
+    { name: 'Design and analysis', desc: 'Analyze problems, design solutions, evaluate impact.' },
+    { name: 'Technical writing', desc: 'Communicate technical information clearly.' },
+    { name: 'Programming language', desc: 'Write code in various languages for software development and automation.' },
+    { name: 'Database management', desc: 'Design, implement, and optimize databases.' },
+    { name: 'Cloud computing', desc: 'Use cloud technologies for data and application management.' },
+    { name: 'Web development', desc: 'Create responsive and visually appealing web applications.' },
+    { name: 'System design', desc: 'Architect scalable, reliable systems appropriate for scale.' }
+  ],
+  'Product management': [
+    { name: 'User research', desc: 'Gather and analyze user data to plan design and development.' },
+    { name: 'Roadmapping', desc: 'Define strategic vision and direction for a product.' },
+    { name: 'Stakeholder management', desc: 'Engage and collaborate with internal and external stakeholders.' },
+    { name: 'Agile and product management frameworks', desc: 'Apply agile methodologies and product management frameworks.' },
+    { name: 'Negotiation', desc: 'Make trade-offs and reach agreements to ensure product success.' },
+    { name: 'Product analytics', desc: 'Analyze data related to product usage and customer behavior.' },
+    { name: 'Wireframing tools', desc: 'Use wireframing and prototyping tools for product interfaces.' }
+  ],
+  Marketing: [
+    { name: 'Brand strategy and positioning', desc: 'Develop and execute brand strategies aligned with business objectives.' },
+    { name: 'Content strategy', desc: 'Develop strategy for creating and distributing valuable content.' },
+    { name: 'Social media marketing', desc: 'Create and implement strategies to leverage social media platforms.' },
+    { name: 'Marketing analytics', desc: 'Track, analyze, and interpret data related to marketing activities.' },
+    { name: 'Creativity and innovation', desc: 'Generate original and impactful campaigns.' },
+    { name: 'Generative AI', desc: 'Use generative AI for marketing insights and innovative solutions.' }
+  ],
+  Sales: [
+    { name: 'Pipeline management and account planning', desc: 'Create and optimize the entire sales plan.' },
+    { name: 'Lead generation', desc: 'Identify and attract potential customers through various strategies.' },
+    { name: 'Negotiation', desc: 'Discuss strategically to reach mutually beneficial agreements.' },
+    { name: 'Product knowledge', desc: 'Understand product features and communicate them effectively.' },
+    { name: 'Market knowledge', desc: 'Understand market trends, competitors, and customer demographics.' },
+    { name: 'Customer relationship management (CRM)', desc: 'Effectively use CRM software to manage customer interactions.' }
+  ],
+  'HR / L&D': [
+    { name: 'Talent acquisition', desc: 'Identify, attract, and hire top talent through effective recruitment.' },
+    { name: 'Learning and development', desc: 'Design, deliver, and evaluate learning programs.' },
+    { name: 'Talent management', desc: 'Identify, attract, develop, and retain high-performing individuals.' },
+    { name: 'Change management', desc: 'Support transitions and implement changes effectively.' },
+    { name: 'Employee relations', desc: 'Maintain positive relationships between employer and employees.' },
+    { name: 'Data analysis', desc: 'Collect, process, and analyze HR data to inform decisions.' }
+  ],
+  'Customer Success': [
+    { name: 'Product and service knowledge', desc: 'Understand, communicate, and support company products.' },
+    { name: 'Customer focus', desc: 'Understand and anticipate customer needs and provide excellent service.' },
+    { name: 'Upselling and cross-selling', desc: 'Offer additional products or services to customers.' },
+    { name: 'Customer outreach', desc: 'Engage proactively with customers to understand their needs.' },
+    { name: 'Customer success analytics', desc: 'Analyze data related to customer interactions, satisfaction, and lifecycle.' },
+    { name: 'Customer journey mapping', desc: 'Create detailed maps of the customer journey.' }
+  ]
+};
+
+function detectDepartment(role) {
+  var r = (role || '').toLowerCase();
+  if (/engineer|developer|devops|backend|frontend|fullstack|sre|mobile|data scientist|ml|ai engineer/.test(r)) return 'Engineering';
+  if (/product manager|pm|product owner|po/.test(r)) return 'Product management';
+  if (/marketing|growth|content|seo|brand/.test(r)) return 'Marketing';
+  if (/sales|account executive|bdr|sdr/.test(r)) return 'Sales';
+  if (/hr|human resource|recruiter|l&d|learning/.test(r)) return 'HR / L&D';
+  if (/customer success|csm|support|cx/.test(r)) return 'Customer Success';
+  return 'Engineering'; // default for tech companies
+}
+
+function buildFrameworkContext(currentRole, targetRole, level) {
+  var dept = detectDepartment(currentRole) || detectDepartment(targetRole);
+  var lvl = CAREER_LEVELS[level] || CAREER_LEVELS['L1'];
+  var functional = FUNCTIONAL_COMPETENCIES[dept] || FUNCTIONAL_COMPETENCIES['Engineering'];
+
+  var coreStr = CORE_COMPETENCIES.slice(0, 8).map(function(c) {
+    return '- ' + c.name + ': ' + (c.levels['Competent'] || '');
+  }).join('\n');
+
+  var funcStr = functional.map(function(c) {
+    return '- ' + c.name + ': ' + c.desc;
+  }).join('\n');
+
+  return 'COMPETENCY FRAMEWORK (FR-03):\nDepartment: ' + dept + '\nCareer Level: ' + level + ' — ' + lvl.label + '\nLevel focus: ' + lvl.focus + '\n\nCore competencies expected at this level:\n' + coreStr + '\n\nFunctional competencies for ' + dept + ':\n' + funcStr;
+}
+
+/* Level picker state */
+var _selectedLevel = '';
+function pickLevel(level, el) {
+  _selectedLevel = level;
+  document.querySelectorAll('.level-opt').forEach(function(b) { b.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('fw-loaded').classList.remove('hidden');
+}
+
 const S = {
   appState: 'ONBOARD',
-  currentRole: '', targetRole: '', feedback: '',
+  currentRole: '', targetRole: '', feedback: '', careerLevel: 'L1',
   strength: { primary: '', secondary: '', answers: {} },
   convo: {
     messages: [],
@@ -452,8 +586,10 @@ function go1() {
   var r = document.getElementById('currentRole').value.trim();
   var t = document.getElementById('targetRole').value.trim();
   if (!r || !t) { alert('Vui lòng điền vai trò hiện tại và mục tiêu.'); return; }
+  if (!_selectedLevel) { alert('Vui lòng chọn cấp độ hiện tại của bạn.'); return; }
   S.currentRole = r; S.targetRole = t;
   S.feedback = document.getElementById('managerFeedback').value.trim();
+  S.careerLevel = _selectedLevel;
   buildSQ();
   show('s0', false); show('s1');
 }
@@ -684,11 +820,12 @@ async function runAnalysis() {
   var guidedStr = S.guidedSelections.length
     ? '\nNgữ cảnh bổ sung (Guided Mode): ' + S.guidedSelections.join(', ')
     : '';
+  var frameworkStr = buildFrameworkContext(S.currentRole, S.targetRole, S.careerLevel);
 
-  var prompt = 'Phân tích gap và tạo development plan. Trả về JSON thuần (không markdown, không backtick):\n\n{\n  "gaps": [\n    {"title":"Tên năng lực cụ thể","rootCause":"Nguyên nhân thực sự, không phải triệu chứng"}\n  ],\n  "behaviors": [\n    {\n      "title":"Hành vi observable và measurable (động từ + object + tần suất)",\n      "description":"Mô tả chi tiết cách thực hiện",\n      "strengthLeverage":"Cách dùng ' + S.strength.primary + ' để thực hiện behavior này",\n      "frequency":"Tần suất cụ thể",\n      "checkpointDays":14,\n      "deadlineDays":60\n    }\n  ],\n  "courses": [\n    {\n      "courseName":"TÊN CHÍNH XÁC khóa học",\n      "instructor":"Tên instructor chính xác",\n      "platform":"Tên platform",\n      "reason":"Lý do cụ thể liên quan đến gap",\n      "competency":"Năng lực được mapping"\n    }\n  ]\n}\n\nDỮ LIỆU:\n- Vai trò: ' + S.currentRole + ' → ' + S.targetRole + '\n- Điểm mạnh: ' + S.strength.primary + ' (chính), ' + S.strength.secondary + ' (phụ)\n- Feedback: ' + (S.feedback || 'Không có') + '\n- Coaching conversation:\n' + convoStr + guidedStr + '\n\nQUY TẮC NGHIÊM NGẶT:\n1. Tối đa 3 gaps, 3 behaviors, 3 courses\n2. Behaviors PHẢI có format: động từ + object + tần suất. VD: "Lead 1 technical discussion mỗi sprint"\n3. KHÔNG tạo behavior chung chung như "Cải thiện giao tiếp"\n4. Courses: CHỈ recommend courses có thật. Nếu không chắc, dùng: "The Staff Engineer\'s Path" (Tanya Reilly, O\'Reilly), "The Manager\'s Path" (Camille Fournier, O\'Reilly), "Influence Without Authority" (Allan Cohen & David Bradford), "Machine Learning Specialization" (Andrew Ng, Coursera)\n5. strengthLeverage PHẢI explicit — nêu rõ cách dùng ' + S.strength.primary + '\n6. Root cause: tìm nguyên nhân thực sự, không mô tả triệu chứng\n7. Context: công ty tech VN (ZaloPay, VNG, MoMo, Shopee, Tiki)';
+  var prompt = 'Phân tích gap và tạo development plan. Trả về JSON thuần (không markdown, không backtick):\n\n{\n  "gaps": [\n    {"title":"Tên năng lực cụ thể từ framework","rootCause":"Nguyên nhân thực sự, không phải triệu chứng"}\n  ],\n  "behaviors": [\n    {\n      "title":"Hành vi observable và measurable (động từ + object + tần suất)",\n      "description":"Mô tả chi tiết cách thực hiện",\n      "strengthLeverage":"Cách dùng ' + S.strength.primary + ' để thực hiện behavior này",\n      "frequency":"Tần suất cụ thể",\n      "checkpointDays":14,\n      "deadlineDays":60\n    }\n  ],\n  "courses": [\n    {\n      "courseName":"TÊN CHÍNH XÁC khóa học",\n      "instructor":"Tên instructor chính xác",\n      "platform":"Tên platform",\n      "reason":"Lý do cụ thể liên quan đến gap",\n      "competency":"Tên năng lực từ framework"\n    }\n  ]\n}\n\nDỮ LIỆU:\n- Vai trò: ' + S.currentRole + ' → ' + S.targetRole + '\n- Cấp độ: ' + S.careerLevel + ' (' + (CAREER_LEVELS[S.careerLevel] || CAREER_LEVELS.L1).label + ')\n- Điểm mạnh: ' + S.strength.primary + ' (chính), ' + S.strength.secondary + ' (phụ)\n- Feedback: ' + (S.feedback || 'Không có') + '\n- Coaching conversation:\n' + convoStr + guidedStr + '\n\n' + frameworkStr + '\n\nQUY TẮC NGHIÊM NGẶT:\n1. Tối đa 3 gaps, 3 behaviors, 3 courses\n2. Gaps PHẢI mapping với competency names từ framework trên\n3. Behaviors PHẢI có format: động từ + object + tần suất. VD: "Lead 1 technical discussion mỗi sprint"\n4. KHÔNG tạo behavior chung chung như "Cải thiện giao tiếp"\n5. Courses: CHỈ recommend courses có thật. Nếu không chắc, dùng: "The Staff Engineer\'s Path" (Tanya Reilly, O\'Reilly), "The Manager\'s Path" (Camille Fournier, O\'Reilly), "Influence Without Authority" (Allan Cohen & David Bradford), "Continuous Discovery Habits" (Teresa Torres, Product Talk)\n6. strengthLeverage PHẢI explicit — nêu rõ cách dùng ' + S.strength.primary + '\n7. Root cause: tìm nguyên nhân thực sự, không mô tả triệu chứng\n8. Context: công ty tech VN (ZaloPay, VNG, MoMo, Shopee, Tiki). Level ' + S.careerLevel + ' expectations apply.';
 
   try {
-    var raw = await claude([{ role: 'user', content: prompt }], '', 1200);
+    var raw = await claude([{ role: 'user', content: prompt }], '', 1600);
     var json;
     try { json = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
     catch (e) {
@@ -805,11 +942,14 @@ async function sendFU() {
 }
 
 function resetAll() {
-  S.appState = 'ONBOARD'; S.currentRole = ''; S.targetRole = ''; S.feedback = '';
+  S.appState = 'ONBOARD'; S.currentRole = ''; S.targetRole = ''; S.feedback = ''; S.careerLevel = 'L1';
+  _selectedLevel = '';
   S.strength = { primary: '', secondary: '', answers: {} };
   S.convo = { messages: [], questionCount: 0, dims: { goal: null, current_state: null, evidence: null, constraint: null, motivation: null }, completedDims: new Set(), lastDim: null };
   S.guidedSelections = []; S.plan = { gaps: [], behaviors: [], courses: [] }; S.committed = []; S.fuHistory = [];
   ['currentRole', 'targetRole', 'managerFeedback'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  document.querySelectorAll('.level-opt').forEach(function(b) { b.classList.remove('selected'); });
+  document.getElementById('fw-loaded').classList.add('hidden');
   document.getElementById('chat-msgs').innerHTML = '';
   document.getElementById('fu-msgs').innerHTML = '';
   document.getElementById('chat-footer').classList.remove('hidden');
