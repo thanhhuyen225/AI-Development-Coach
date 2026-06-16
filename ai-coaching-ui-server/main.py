@@ -627,6 +627,8 @@ class CustomHandler(SimpleHTTPRequestHandler):
             self.handle_get_skills()
         elif self.path == '/invocations':
             self.handle_chat()
+        elif self.path == '/api/gap-analysis':
+            self.handle_gap_analysis()
         else:
             self.send_response(404)
             self.end_headers()
@@ -769,6 +771,77 @@ class CustomHandler(SimpleHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps({"skills": skills}).encode())
+
+    def handle_gap_analysis(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        payload = json.loads(post_data.decode())
+        
+        profile = payload.get("profile", {})
+        
+        if not llm:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "AI not available"}).encode())
+            return
+        
+        prompt = f"""Bạn là Career Development Coach chuyên nghiệp. Hãy phân tích profile của ứng viên và đưa ra recommendations về kỹ năng cần phát triển.
+
+## Thông tin ứng viên:
+- **Current Level**: {profile.get('current_level', 'Chưa xác định')}
+- **Target Role**: {profile.get('target_role', 'Chưa xác định')}
+- **Tech Stack**: {profile.get('main_stack', 'Chưa xác định')}
+- **Focus Area**: {profile.get('focus_area', 'Chưa xác định')}
+
+## Câu trả lời assessment:
+1. **Cách tiếp cận vấn đề**: {profile.get('q1_problem_approach', 'Chưa trả lời')}
+2. **Khi cần hỏi người khác**: {profile.get('q2_colleague_ask', 'Chưa trả lời')}
+3. **Động lực chính**: {profile.get('q3_motivation', 'Chưa trả lời')}
+4. **Vai trò trong team**: {profile.get('q4_team_role', 'Chưa trả lời')}
+
+## Yêu cầu:
+Dựa trên thông tin trên, hãy phân tích và đưa ra:
+1. **Điểm mạnh** của ứng viên
+2. **Khoảng trống kỹ năng** (skills gap) cần lấp đầy để đạt target role
+3. **3-5 đề xuất cụ thể** với lý do tại sao cần skill đó
+4. **Priority** cho mỗi skill (high/medium)
+
+Format JSON như sau:
+{{
+  "strengths": ["điểm mạnh 1", "điểm mạnh 2"],
+  "gaps": ["khoảng trống 1", "khoảng trống 2"],
+  "recommendations": [
+    {{"skill": "Tên skill", "reason": "Lý do", "priority": "high/medium"}},
+    ...
+  ]
+}}
+
+Chỉ trả lời JSON, không giải thích thêm."""
+
+        try:
+            response = llm.invoke(prompt)
+            result = response.content.strip()
+            
+            if result.startswith("```json"):
+                result = result[7:]
+            if result.startswith("```"):
+                result = result[3:]
+            if result.endswith("```"):
+                result = result[:-3]
+            
+            analysis = json.loads(result.strip())
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(analysis).encode())
+        except Exception as e:
+            print(f"[ERROR] Gap analysis failed: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
 
     def handle_chat(self):
         content_length = int(self.headers['Content-Length'])
