@@ -1,114 +1,105 @@
-# AI Development Coach
+# ai-coaching-development
 
-AI-powered career development coaching app — React frontend + Go backend.
+A GreenNode AgentBase agent.
 
-## Project structure
+## Prerequisites
+
+- Python 3.10+
+- A GreenNode IAM Service Account ([create one here](https://iam.console.vngcloud.vn/service-accounts))
+
+## Setup
+
+1. Create and activate a virtual environment:
+   ```bash
+   # macOS/Linux:
+   python3 -m venv venv && source venv/bin/activate
+
+   # Windows (PowerShell):
+   python -m venv venv; venv\Scripts\Activate.ps1
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Configure credentials for **local development** (choose one method):
+
+   **Option A** - Environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+   **Option B** - Config file (already created):
+   Edit `.greennode.json` with your `client_id` and `client_secret` from your IAM Service Account.
+
+   > **Note**: When deployed on AgentBase Runtime, the IAM service account and Agent Identity are managed by the runtime system and automatically available to the SDK — no manual credential configuration needed in the container.
+
+4. (Optional, for local dev) Create an Agent Identity at https://aiplatform.console.vngcloud.vn/access-control and set `agent_identity` in `.greennode.json` or `GREENNODE_AGENT_IDENTITY` env var. On AgentBase Runtime, this is managed automatically by the runtime system.
+
+## Configure LLM (LangChain/LangGraph only)
+
+This project uses any OpenAI-compatible LLM provider. Set the following in `.env`:
 
 ```
-AI-Development-Coach/
-├── frontend/          # React + Vite + TypeScript
-├── backend/           # Go + Gin API
-├── infra/             # Docker & nginx
-├── ai_development_coach.html   # Original prototype (reference)
-├── docker-compose.yml
-├── Makefile
-└── .env.example
+LLM_API_KEY=your-api-key
+LLM_BASE_URL=your-provider-base-url
+LLM_MODEL=your-model-name
 ```
 
-## Quick start
+**Provider examples:**
+- **GreenNode AIP**: Use `/agentbase-llm` to get an API key. Set `LLM_BASE_URL=https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1`
+- **OpenAI**: Set `LLM_BASE_URL=https://api.openai.com/v1`, model e.g. `gpt-4o`
+- **Ollama** (local): Set `LLM_BASE_URL=http://localhost:11434/v1` (no key needed)
 
-### 1. Backend (Go)
+**Production**: Use `/agentbase-identity` to store your API key on the platform and inject it at runtime.
+
+## Run Locally
 
 ```bash
-cd backend
-cp ../.env.example ../.env
-go mod tidy
-go run ./cmd/server        # http://localhost:8080
+python3 main.py
 ```
 
-Or from root:
+The agent starts on `http://127.0.0.1:8080`.
 
+Test it:
 ```bash
-make backend
+curl -X POST http://127.0.0.1:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, agent!"}'
 ```
 
-### 2. Frontend (React)
+**Testing tips** — the SDK extracts metadata from request headers (defined in `greennode_agentbase.runtime.models`):
+- If the agent uses **memory** (short-term or long-term), **both headers are required** — the agent will return an error without them:
+  `-H "X-GreenNode-AgentBase-User-Id: test-user"` `-H "X-GreenNode-AgentBase-Session-Id: test-session-1"`
+- If the agent uses **user identity features** (delegated API key, OAuth2 3LO token), pass a user header so credentials resolve correctly:
+  `-H "X-GreenNode-AgentBase-User-Id: user-abc"`
+- To pass **custom headers** to the agent, use the `X-GreenNode-AgentBase-Custom-` prefix. The SDK collects all headers with this prefix (plus `Authorization`) into `context.request_headers`:
+  `-H "X-GreenNode-AgentBase-Custom-My-Key: some-value"`
+  Then access in handler: `context.request_headers.get("X-GreenNode-AgentBase-Custom-My-Key")`
 
+Health check:
 ```bash
-cd frontend
-npm install
-npm run dev                # http://localhost:5173
+curl http://127.0.0.1:8080/health
 ```
 
-Or from root:
+## Deploy to AgentBase Runtime
 
-```bash
-make install
-make frontend
-```
+1. Build and push your Docker image (or use `/agentbase-deploy` skill)
+2. Create a Runtime at https://aiplatform.console.vngcloud.vn/agent-runtime?tab=runtime
+3. Create an Endpoint pointing to your Runtime
 
-### 3. Docker (optional)
+See the [AgentBase Console](https://aiplatform.console.vngcloud.vn) to manage runtimes, identities, and memory.
 
-```bash
-cp .env.example .env
-docker compose up --build
-```
+## Add Conversation Memory (Optional)
 
-## API endpoints
+When you need conversation history or long-term memory, use `/agentbase-memory` to set up AgentBase Memory and integrate it with your agent.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/v1/static` | Static data (questions, options) |
-| POST | `/api/v1/auth/register` | Register |
-| POST | `/api/v1/auth/login` | Login |
-| POST | `/api/v1/sessions` | Create session |
-| PATCH | `/api/v1/sessions/:id/onboarding` | Save onboarding |
-| POST | `/api/v1/sessions/:id/strength` | Submit strength answers |
-| POST | `/api/v1/sessions/:id/strength/quick` | Submit quick strength discovery |
-| GET | `/api/v1/sessions/:id/strength` | Get strength profile |
-| POST | `/api/v1/admin/frameworks/upload` | Upload competency framework (`json`/`csv`) |
-| GET | `/api/v1/frameworks` | List uploaded frameworks |
-| POST | `/api/v1/sessions/:id/coach/start` | Start coaching |
-| POST | `/api/v1/sessions/:id/coach/message` | Send coaching message |
-| POST | `/api/v1/sessions/:id/coach/guided` | Submit guided selections |
-| POST | `/api/v1/sessions/:id/analysis` | Run gap analysis |
-| POST | `/api/v1/sessions/:id/commit` | Commit behaviors |
-| POST | `/api/v1/sessions/:id/followup/start` | Start follow-up |
-| POST | `/api/v1/sessions/:id/followup/message` | Send follow-up message |
+## Project Structure
 
-## Environment variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AI_PROVIDER` | `free` | `free` or `anthropic` |
-| `ANTHROPIC_API_KEY` | — | Optional, only when `AI_PROVIDER=anthropic` |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude model |
-| `DB_PATH` | `data/app.db` | SQLite database path |
-| `PORT` | `8080` | Backend port |
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | CORS origins |
-
-## Sample Framework Upload
-
-Sample files:
-
-- `examples/competency_framework.sample.json`
-- `examples/competency_framework.sample.csv`
-
-Upload JSON:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/admin/frameworks/upload \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@examples/competency_framework.sample.json" \
-  -F "format=json"
-```
-
-## Note on `go mod`
-
-Go module lives in `backend/`, not the project root. Always run Go commands from `backend/`:
-
-```bash
-cd backend && go mod tidy   # ✅ correct
-go mod tidy                 # ❌ wrong (root has no go.mod)
-```
+- `main.py` - Agent entrypoint with handler and health check
+- `Dockerfile` - Container image definition
+- `requirements.txt` - Python dependencies
+- `.greennode.json` - AgentBase configuration
+- `.env.example` - Environment variable template

@@ -1,0 +1,22 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "model": "MAAS-chat/minimax/minimax-m2.5",
+    "provider": {
+      "MAAS-chat": {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "MAAS chat",
+        "options": {
+          "baseURL": "https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1",
+          "apiKey": "{env:MAAS_API_KEY}"
+        },
+        "models": {
+          "google/gemma-4-31b-it": {
+            "name": "google/gemma-4-31b-it"
+          },
+          "minimax/minimax-m2.5": {
+            "name": "minimax/minimax-m2.5"
+          }
+        }
+      }
+    }
+  }
