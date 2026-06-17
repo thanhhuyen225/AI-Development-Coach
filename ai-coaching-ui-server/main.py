@@ -334,6 +334,73 @@ Bạn có muốn tôi tạo lịch học chi tiết hàng tuần không?
     
     return roadmap
 
+COACH_SYSTEM_PROMPT = """Bạn là một AI Development Coach giàu kinh nghiệm. Nhiệm vụ duy nhất là CHẨN ĐOÁN — giúp người dùng hiểu vấn đề thực sự đằng sau feedback họ nhận được.
+
+Toàn bộ cuộc trò chuyện bằng tiếng Việt tự nhiên, ấm áp. Không dùng tiếng Anh. Không ngôn ngữ công sở cứng nhắc.
+
+Bạn là coach — không phải tư vấn, không phải mentor. Không bao giờ đề xuất giải pháp hay hướng phát triển.
+
+---
+
+NGUYÊN TẮC CỐT LÕI:
+Feedback chỉ là tín hiệu — không phải vấn đề.
+Không bao giờ nhảy thẳng từ feedback sang nhãn năng lực.
+Luôn truy theo: Feedback → Tình huống → Hành vi → Tác động → Tư duy → Nguyên nhân gốc rễ
+
+---
+
+NGÂN SÁCH CÂU HỎI — QUY TẮC CỨNG:
+Bạn có TỐI ĐA 5 câu hỏi coaching. Không được hỏi quá 5 câu kể từ sau khi người dùng chia sẻ feedback.
+Mỗi câu hỏi là một nguồn lực quý — chi tiêu thông minh dựa trên thông tin đã có.
+Đếm nội tâm mỗi câu bạn đặt ra. Khi đã hỏi câu thứ 5 HOẶC confidence >= 80%: chuyển sang tổng kết NGAY, không hỏi thêm.
+
+Ưu tiên thu thập theo thứ tự:
+1. Tình huống (bối cảnh cụ thể)
+2. Hành vi quan sát được (đã làm gì / không làm gì)
+3. Tác động (điều gì xảy ra sau đó)
+4. Tư duy / niềm tin (điều gì dẫn đến cách xử lý đó) — quan trọng nhất, dành thêm không gian nếu cần
+
+Kỳ vọng (người khác mong đợi gì) là TÙY CHỌN — chỉ dùng nếu sau 4 câu confidence vẫn dưới 60%.
+
+---
+
+4 CÂU HỎI CHÍNH (dùng linh hoạt theo thứ tự ưu tiên, không nhất thiết đủ cả 4):
+
+Tình huống: "Bạn nhớ tình huống gần nhất khiến người khác đưa ra feedback đó không?"
+
+Hành vi: "Trong tình huống đó, bạn đã xử lý như thế nào?"
+
+Tác động: "Sau đó điều gì xảy ra?" hoặc "Việc đó ảnh hưởng thế nào đến công việc hoặc những người liên quan?"
+
+Tư duy (quan trọng nhất): "Điều gì khiến bạn chọn cách xử lý như vậy?"
+
+---
+
+TEMPLATE TỔNG KẾT (khi đủ bằng chứng hoặc hết ngân sách):
+"Để tôi kiểm tra xem mình hiểu đúng không nhé.
+
+Qua những gì bạn chia sẻ, có vẻ vấn đề không đơn thuần là '[feedback]'.
+
+Trong tình huống [situation], bạn có xu hướng [behavior].
+
+Điều này dẫn tới [impact].
+
+Có vẻ một phần nguyên nhân là [thinking pattern / belief].
+
+Điều này có phản ánh đúng trải nghiệm của bạn không?"
+
+---
+
+XỬ LÝ XÁC NHẬN:
+"Đúng" → Xuất kết quả ngay.
+"Đúng một phần" → Hỏi thêm tối đa 1 câu để điều chỉnh, rồi tổng kết lại.
+"Chưa đúng" → "Phần nào chưa chính xác?" — 1 câu duy nhất, sau đó tổng kết lại.
+
+---
+
+GIỌNG VĂN:
+Tiếng Việt tự nhiên, ấm áp. Mỗi tin nhắn: tối đa 2-3 câu + 1 câu hỏi duy nhất. Không hỏi nhiều câu cùng lúc."""
+
 CONVERSATION_STAGES = {
     "WELCOME": 0,
     "DISCOVERY": 1,
@@ -341,6 +408,7 @@ CONVERSATION_STAGES = {
     "CHALLENGES": 3,
     "MOTIVATION": 4,
     "ANALYSIS": 5,
+    "COACHING": 6,
 }
 
 DISCOVERY_QUESTIONS = {
@@ -505,6 +573,32 @@ def extract_profile_from_message(message: str, current_profile: dict) -> dict:
             break
     
     return new_profile
+
+def handle_coaching_phase(message: str, chat_history: list, user_profile: dict):
+    """Handle coaching phase using the diagnostic system prompt."""
+    if not llm:
+        return "Xin lỗi, tôi đang gặp sự cố kết nối. Bạn vui lòng thử lại sau nhé."
+    
+    history_text = ""
+    for msg in chat_history[-10:]:
+        role = "User" if msg.get("role") == "user" else "Assistant"
+        history_text += f"{role}: {msg.get('content', '')}\n"
+    
+    full_prompt = f"""{COACH_SYSTEM_PROMPT}
+
+Lịch sử trò chuyện:
+{history_text}
+
+User mới chia sẻ: {message}
+
+Hãy phản hồi dựa trên nguyên tắc coach ở trên. Nếu đã đủ thông tin, hãy tổng kết và xác nhận với user."""
+
+    try:
+        response = llm.invoke(full_prompt)
+        return response.content.strip()
+    except Exception as e:
+        print(f"[WARN] Coaching phase failed: {e}")
+        return "Cảm ơn bạn đã chia sẻ. Bạn có muốn tôi tổng hợp lại những gì chúng ta đã thảo luận không?"
 
 def handle_analysis_phase(message: str, user_profile: dict, chat_history: list, user_first_name: str, user_id: int = None):
     """Handle the final phase - generate GAP analysis and roadmap."""
@@ -786,7 +880,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "AI not available"}).encode())
             return
         
-        prompt = f"""Bạn là Career Development Coach chuyên nghiệp. Hãy phân tích profile của ứng viên và đưa ra recommendations về kỹ năng cần phát triển.
+        prompt = f"""Bạn là Career Development Coach chuyên nghiệp. Hãy phân tích profile của ứng viên và tạo kế hoạch phát triển chi tiết.
 
 ## Thông tin ứng viên:
 - **Current Level**: {profile.get('current_level', 'Chưa xác định')}
@@ -794,26 +888,61 @@ class CustomHandler(SimpleHTTPRequestHandler):
 - **Tech Stack**: {profile.get('main_stack', 'Chưa xác định')}
 - **Focus Area**: {profile.get('focus_area', 'Chưa xác định')}
 
-## Câu trả lời assessment:
+## Câu trả lời assessment (Điểm mạnh):
 1. **Cách tiếp cận vấn đề**: {profile.get('q1_problem_approach', 'Chưa trả lời')}
 2. **Khi cần hỏi người khác**: {profile.get('q2_colleague_ask', 'Chưa trả lời')}
 3. **Động lực chính**: {profile.get('q3_motivation', 'Chưa trả lời')}
 4. **Vai trò trong team**: {profile.get('q4_team_role', 'Chưa trả lời')}
 
 ## Yêu cầu:
-Dựa trên thông tin trên, hãy phân tích và đưa ra:
-1. **Điểm mạnh** của ứng viên
-2. **Khoảng trống kỹ năng** (skills gap) cần lấp đầy để đạt target role
-3. **3-5 đề xuất cụ thể** với lý do tại sao cần skill đó
-4. **Priority** cho mỗi skill (high/medium)
+Tạo JSON output với 2 khối:
 
-Format JSON như sau:
+### KHỐI 1 — Thay đổi hành vi (behaviorChanges):
+Tối đa 3 hành vi. Mỗi hành vi phải:
+- Quan sát được, đo lường được, có thể thực hiện được
+- Định dạng tiêu đề: động từ + đối tượng + tần suất cụ thể. Ví dụ: "Dẫn dắt 1 cuộc thảo luận kỹ thuật mỗi tuần"
+- Mô tả phải giải thích chính xác CÁCH THỰC HIỆN, không phải "những việc cần làm"
+- Tần suất phải cụ thể: "một lần mỗi sprint", "mỗi thứ Hai", "sau mỗi cuộc họp với các bên liên quan"
+- Mỗi hành vi phải truy ngược được: (1) một trong các khoảng trống từ Bước 2 VÀ (2) tận dụng một điểm mạnh từ Bước 3
+- checkpointDays: số ngày để check tiến độ (vd: 14)
+- deadlineDays: số ngày để hoàn thành (vd: 60)
+
+### KHỐI 2 — Đề xuất học tập (learningRecommendations):
+- Đề xuất khóa học CHÍNH XÁC với tên khóa học, tên giảng viên, tên nền tảng CỤ THỂ
+- Reason phải giải thích TẠI SAO khóa học này giúp lấp đầy khoảng trống năng lực CỤ THỂ cho vai trò hiện tại VÀ vai trò mục tiêu của user này
+- mappedCompetency phải sử dụng chính xác tên năng lực
+- KHÔNG đề xuất khóa học chung chung (ví dụ: "Kỹ năng giao tiếp trên Coursera" là KHÔNG HỢP LỆ)
+- Xem xét: current role, target role, 3 khoảng trống năng lực hàng đầu, và profile điểm mạnh
+
+Framework năng lực tham khảo:
+- System Design, Architecture Patterns, Code Quality, Testing, APIs, Databases
+- Communication, Presentation, Technical Writing, Conflict Resolution
+- Mentoring, Team Leadership, Coaching, Stakeholder Management
+- Project Planning, Estimation, Risk Management, Delivery Excellence
+- Strategic Thinking, Business Alignment, Technical Strategy
+
+Format JSON:
 {{
-  "strengths": ["điểm mạnh 1", "điểm mạnh 2"],
-  "gaps": ["khoảng trống 1", "khoảng trống 2"],
-  "recommendations": [
-    {{"skill": "Tên skill", "reason": "Lý do", "priority": "high/medium"}},
-    ...
+  "behaviorChanges": [
+    {{
+      "title": "Động từ + Đối tượng + Tần suất cụ thể",
+      "description": "Giải thích chính xác CÁCH thực hiện hành vi này mỗi ngày/tuần/sprint",
+      "frequency": "cụ thể: vd 'mỗi thứ Hai', '1 lần/sprint', 'sau mỗi standup'",
+      "checkpointDays": 14,
+      "deadlineDays": 60,
+      "mappedGap": "Tên khoảng trống năng lực",
+      "leveragedStrength": "Điểm mạnh được tận dụng"
+    }}
+  ],
+  "learningRecommendations": [
+    {{
+      "courseName": "Tên khóa học CHÍNH XÁC",
+      "instructor": "Tên giảng viên CHÍNH XÁC",
+      "platform": "Nền tảng CHÍNH XÁC (Udemy, Coursera, Pluralsight, v.v.)",
+      "reason": "Tại sao khóa học này giúp user cụ thể này lấp đầy khoảng trống cho vai trò hiện tại -> mục tiêu",
+      "mappedCompetency": "Tên năng lực CHÍNH XÁC từ framework",
+      "estimatedHours": số giờ ước tính
+    }}
   ]
 }}
 
@@ -853,6 +982,7 @@ Chỉ trả lời JSON, không giải thích thêm."""
         user_id = payload.get("user_id", 0)
         session_id = payload.get("session_id")
         chat_history = payload.get("history", [])
+        coach_phase = payload.get("coach_phase", "chat")
         
         if user_id:
             if not session_id:
@@ -887,7 +1017,9 @@ Chỉ trả lời JSON, không giải thích thêm."""
         
         stage = get_conversation_turn(chat_history, user_profile)
         
-        if stage == CONVERSATION_STAGES["ANALYSIS"]:
+        if coach_phase == "coaching":
+            llm_response = handle_coaching_phase(message, chat_history, user_profile)
+        elif stage == CONVERSATION_STAGES["ANALYSIS"]:
             llm_response = handle_analysis_phase(message, user_profile, chat_history, user_name, user_id)
         else:
             llm_response = generate_smart_question(message, chat_history, user_profile, stage)
