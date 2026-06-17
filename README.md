@@ -1,105 +1,103 @@
-# ai-coaching-development
+# AI Development Coach
+> Your 24/7 Growth Partner — Clarity today. Growth tomorrow.
 
-A GreenNode AgentBase agent.
+---
 
-## Prerequisites
+## Problem
 
-- Python 3.10+
-- A GreenNode IAM Service Account ([create one here](https://iam.console.vngcloud.vn/service-accounts))
+Nhân viên không biết mình đang thiếu gì để lên level tiếp theo. Feedback từ manager thường chung chung, khó chuyển thành hành động cụ thể. Development plan thì dài và không ai thực hiện đến cùng.
 
-## Setup
+Ba bài toán cốt lõi:
+- **Nhân viên** không thể translate feedback thành behavior change cụ thể
+- **Manager** tốn nhiều thời gian coaching mà không scale được
+- **L&D team** không cá nhân hóa được ở quy mô lớn và không đo được hiệu quả thực sự
 
-1. Create and activate a virtual environment:
-   ```bash
-   # macOS/Linux:
-   python3 -m venv venv && source venv/bin/activate
+---
 
-   # Windows (PowerShell):
-   python -m venv venv; venv\Scripts\Activate.ps1
-   ```
+## Users
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Primary**
+- Junior, Mid-level, Senior employee tại các công ty tech (VNG, ZaloPay, MoMo, Shopee, Tiki) muốn phát triển lên level tiếp theo
 
-3. Configure credentials for **local development** (choose one method):
+**Secondary**
+- New Hire cần onboard và ramp up nhanh
+- Internal Mobility Candidate chuẩn bị chuyển vị trí
 
-   **Option A** - Environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
+---
 
-   **Option B** - Config file (already created):
-   Edit `.greennode.json` with your `client_id` and `client_secret` from your IAM Service Account.
+## Solution
 
-   > **Note**: When deployed on AgentBase Runtime, the IAM service account and Agent Identity are managed by the runtime system and automatically available to the SDK — no manual credential configuration needed in the container.
+AI Development Coach là conversational AI agent dẫn dắt một coaching session thực sự — không phải form điền, không phải survey — và tạo ra personalized 60-day behavior change plan trong 15 phút.
 
-4. (Optional, for local dev) Create an Agent Identity at https://aiplatform.console.vngcloud.vn/access-control and set `agent_identity` in `.greennode.json` or `GREENNODE_AGENT_IDENTITY` env var. On AgentBase Runtime, this is managed automatically by the runtime system.
+**Cách agent hoạt động:**
 
-## Configure LLM (LangChain/LangGraph only)
+1. User nhập current role và target role
+2. Hoàn thành Clifton Strengths quick discovery (4 câu hỏi)
+3. AI coaching conversation với rule-based drill-down (tối đa 5 câu)
+4. Agent tự detect low self-awareness → auto-switch sang Guided Reflection mode
+5. Gap analysis dựa trên competency framework + strength profile + manager feedback
+6. Output: 3 critical behavior changes + 3 curated learning resources + 60-day roadmap
+7. Follow-up check-in tại Day 14 và Day 60
 
-This project uses any OpenAI-compatible LLM provider. Set the following in `.env`:
+**Giá trị mang lại:**
 
-```
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=your-provider-base-url
-LLM_MODEL=your-model-name
-```
+Agent chạy hàng ngày giúp nhân viên biết chính xác cần thay đổi gì ngay tuần này — thay vì chờ performance review 6 tháng một lần. Manager tiết kiệm thời gian coaching 1-1. L&D đo được behavior change thực tế theo từng cá nhân, không phải điểm số hay số lượt học.
 
-**Provider examples:**
-- **GreenNode AIP**: Use `/agentbase-llm` to get an API key. Set `LLM_BASE_URL=https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1`
-- **OpenAI**: Set `LLM_BASE_URL=https://api.openai.com/v1`, model e.g. `gpt-4o`
-- **Ollama** (local): Set `LLM_BASE_URL=http://localhost:11434/v1` (no key needed)
+---
 
-**Production**: Use `/agentbase-identity` to store your API key on the platform and inject it at runtime.
+## How to Run
 
-## Run Locally
+**Yêu cầu**
+- Trình duyệt hiện đại bất kỳ
+- Anthropic API key (Claude Sonnet)
+
+**Chạy ngay — không cần cài đặt**
 
 ```bash
-python3 main.py
+# 1. Clone repo
+git clone https://github.com/your-repo/ai-development-coach.git
+
+# 2. Mở file trực tiếp trên trình duyệt
+open ai_development_coach_v2.html
 ```
 
-The agent starts on `http://127.0.0.1:8080`.
+> Không cần server. Không cần npm install. Không cần build. Mở file là chạy được.
 
-Test it:
-```bash
-curl -X POST http://127.0.0.1:8080/invocations \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello, agent!"}'
+**Cài API Key**
+
+Nếu chạy ngoài môi trường claude.ai, thêm key vào phần fetch header trong script:
+
+```javascript
+headers: {
+  'Content-Type': 'application/json',
+  'x-api-key': 'YOUR_API_KEY_HERE',
+  'anthropic-version': '2023-06-01'
+}
 ```
 
-**Testing tips** — the SDK extracts metadata from request headers (defined in `greennode_agentbase.runtime.models`):
-- If the agent uses **memory** (short-term or long-term), **both headers are required** — the agent will return an error without them:
-  `-H "X-GreenNode-AgentBase-User-Id: test-user"` `-H "X-GreenNode-AgentBase-Session-Id: test-session-1"`
-- If the agent uses **user identity features** (delegated API key, OAuth2 3LO token), pass a user header so credentials resolve correctly:
-  `-H "X-GreenNode-AgentBase-User-Id: user-abc"`
-- To pass **custom headers** to the agent, use the `X-GreenNode-AgentBase-Custom-` prefix. The SDK collects all headers with this prefix (plus `Authorization`) into `context.request_headers`:
-  `-H "X-GreenNode-AgentBase-Custom-My-Key: some-value"`
-  Then access in handler: `context.request_headers.get("X-GreenNode-AgentBase-Custom-My-Key")`
+---
 
-Health check:
-```bash
-curl http://127.0.0.1:8080/health
-```
+## What to Customize
 
-## Deploy to AgentBase Runtime
+| Phần | Vị trí trong code | Cách chỉnh |
+|------|-------------------|------------|
+| Coaching logic & signal rules | `buildCoachSysPrompt()` | Sửa drill-down rules, forbidden phrases, dimension priority |
+| Câu hỏi Strength Discovery | `SQS` array | Thay bằng câu hỏi Clifton của tổ chức bạn |
+| Guided Mode checklist | `GUIDED_OPTS` array | Thêm/bớt options phù hợp với blockers phổ biến trong công ty |
+| Competency framework | Prompt trong `runAnalysis()` | Inject framework nội bộ của công ty vào context |
+| Danh sách khóa học | Trong analysis prompt | Thêm curated catalog để giảm hallucination risk |
+| Follow-up questions | `startFollowup()` / `sendFU()` | Điều chỉnh checkpoint timing và style câu hỏi |
+| Màu sắc thương hiệu | CSS variables đầu file | Thay `#534AB7` bằng brand color của tổ chức |
+| Ngôn ngữ | Toàn bộ prompt strings | Hiện tại tiếng Việt — swap sang tiếng Anh hoặc ngôn ngữ khác |
 
-1. Build and push your Docker image (or use `/agentbase-deploy` skill)
-2. Create a Runtime at https://aiplatform.console.vngcloud.vn/agent-runtime?tab=runtime
-3. Create an Endpoint pointing to your Runtime
+---
 
-See the [AgentBase Console](https://aiplatform.console.vngcloud.vn) to manage runtimes, identities, and memory.
+## Built With
 
-## Add Conversation Memory (Optional)
+- Vanilla HTML / CSS / JavaScript — zero dependencies
+- Anthropic Claude Sonnet API via GreenNode AgentBase
+- Tabler Icons (CDN)
 
-When you need conversation history or long-term memory, use `/agentbase-memory` to set up AgentBase Memory and integrate it with your agent.
+---
 
-## Project Structure
-
-- `main.py` - Agent entrypoint with handler and health check
-- `Dockerfile` - Container image definition
-- `requirements.txt` - Python dependencies
-- `.greennode.json` - AgentBase configuration
-- `.env.example` - Environment variable template
+*Compatible with Claude, GPT-4, Gemini hoặc bất kỳ LLM nào hỗ trợ system prompt.*
