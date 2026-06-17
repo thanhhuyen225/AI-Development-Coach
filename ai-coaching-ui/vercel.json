@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://endpoint-fc76862c-f97a-4af6-902c-5720b29439fc.agentbase-runtime.aiplatform.vngcloud.vn/$1"
+    }
+  ]
+}
